@@ -15,11 +15,13 @@ namespace KeyboardOverlap.Forms.Plugin.iOSUnified
 	{
 		NSObject _keyboardShowObserver;
 		NSObject _keyboardHideObserver;
-		private bool _pageWasShiftedUp;
-		private double _activeViewBottom;
+		private UITextView _activeTextView;
+		private nfloat _cursorTop;
+		private double _shiftedBy;
 		private bool _isKeyboardShown;
+		private nfloat _keyboardHeight;
 
-		public static void Init ()
+		public static new void Init()
 		{
 			var now = DateTime.Now;
 			Debug.WriteLine ("Keyboard Overlap plugin initialized {0}", now);
@@ -84,14 +86,44 @@ namespace KeyboardOverlap.Forms.Plugin.iOSUnified
 				return;
 
 			var keyboardFrame = UIKeyboard.FrameEndFromNotification (notification);
-			var isOverlapping = activeView.IsKeyboardOverlapping (View, keyboardFrame);
+			_keyboardHeight = keyboardFrame.Height;
 
-			if (!isOverlapping)
-				return;
+			_shiftedBy = 0;
+
+			var remainingHeight = View.Frame.Height - _keyboardHeight;
+
+			_activeTextView = activeView as UITextView;
+			if (_activeTextView != null && _activeTextView.Frame.Height > remainingHeight)
+			{
+				_cursorTop = -10;
+				// special handling for UITextViews which are higher than the remaining height
+				_activeTextView.SelectionChanged += TextView_SelectionChanged;
+				return;	// the cursor position is not set yet, so I need to return for now
+			}
+
+			var isOverlapping = activeView.IsKeyboardOverlapping (View, _keyboardHeight);
 
 			if (isOverlapping) {
-				_activeViewBottom = activeView.GetViewRelativeBottom (View);
-				ShiftPageUp (keyboardFrame.Height, _activeViewBottom);
+				var viewBottom = activeView.GetViewRelativeBottom (View);
+				ShiftPageUp (viewBottom);
+			}
+		}
+
+		private void TextView_SelectionChanged(object sender, EventArgs e)
+		{
+			var remainingHeight = View.Frame.Height - _keyboardHeight;
+
+			var relativeCursorPos = GetCursorPosition(_activeTextView);
+			if (relativeCursorPos.Top == _cursorTop)
+				return;
+			_cursorTop = relativeCursorPos.Top;
+
+			var activeViewTop = _activeTextView.ConvertPointFromView(View.Frame.Location, View);
+			var absoluteCursorBottom = activeViewTop.Y + relativeCursorPos.Bottom;
+
+			var isOverlapping = absoluteCursorBottom >= remainingHeight;
+			if (isOverlapping) {
+				ShiftPageUp(absoluteCursorBottom);
 			}
 		}
 
@@ -101,40 +133,57 @@ namespace KeyboardOverlap.Forms.Plugin.iOSUnified
 				return;
 
 			_isKeyboardShown = false;
-			var keyboardFrame = UIKeyboard.FrameEndFromNotification (notification);
 
-			if (_pageWasShiftedUp) {
-				ShiftPageDown (keyboardFrame.Height, _activeViewBottom);
+			if (_activeTextView != null) {
+				_activeTextView.SelectionChanged -= TextView_SelectionChanged;
+				_activeTextView = null;
+			}
+
+			if (_shiftedBy != 0) {
+				ShiftPageDown ();
 			}
 		}
 
-		private void ShiftPageUp (nfloat keyboardHeight, double activeViewBottom)
+		private void ShiftPageUp (double activeViewBottom)
 		{
 			var pageFrame = Element.Bounds;
 
-			var newY = pageFrame.Y + CalculateShiftByAmount (pageFrame.Height, keyboardHeight, activeViewBottom);
+			var remainingHeight = pageFrame.Height - _keyboardHeight;
+			var delta =  activeViewBottom - remainingHeight;
+
+			Console.WriteLine($"Shifting page up {delta} pixels");
+			var newY = pageFrame.Y - delta;
+			_shiftedBy += delta;
+			if(_shiftedBy > _keyboardHeight)		// limit to _keyboardHeight
+			{
+				newY = newY + _shiftedBy - _keyboardHeight;
+				_shiftedBy = _keyboardHeight;
+			}
+
+			Element.LayoutTo (new Rectangle (pageFrame.X, newY,
+				pageFrame.Width, pageFrame.Height));
+		}
+
+		private void ShiftPageDown ()
+		{
+			Console.WriteLine($"Shifting page down {_shiftedBy} pixels");
+			var pageFrame = Element.Bounds;
+
+			var newY = pageFrame.Y + _shiftedBy;
 
 			Element.LayoutTo (new Rectangle (pageFrame.X, newY,
 				pageFrame.Width, pageFrame.Height));
 
-			_pageWasShiftedUp = true;
+			_shiftedBy = 0;
 		}
 
-		private void ShiftPageDown (nfloat keyboardHeight, double activeViewBottom)
+		private CGRect GetCursorPosition(UITextView textview)
 		{
-			var pageFrame = Element.Bounds;
+			var range = textview.SelectedTextRange;
+			if (range != null)
+				return textview.GetCaretRectForPosition(range.End);
 
-			var newY = pageFrame.Y - CalculateShiftByAmount (pageFrame.Height, keyboardHeight, activeViewBottom);
-
-			Element.LayoutTo (new Rectangle (pageFrame.X, newY,
-				pageFrame.Width, pageFrame.Height));
-
-			_pageWasShiftedUp = false;
-		}
-
-		private double CalculateShiftByAmount (double pageHeight, nfloat keyboardHeight, double activeViewBottom)
-		{
-			return (pageHeight - activeViewBottom) - keyboardHeight;
+			return textview.Frame;
 		}
 	}
 }

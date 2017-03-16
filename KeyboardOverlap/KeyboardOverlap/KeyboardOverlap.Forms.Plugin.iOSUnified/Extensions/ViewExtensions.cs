@@ -38,7 +38,7 @@ namespace KeyboardOverlap.Forms.Plugin.iOSUnified
 		public static double GetViewRelativeBottom (this UIView view, UIView rootView)
 		{
 			var viewRelativeCoordinates = rootView.ConvertPointFromView (view.Frame.Location, view);
-			var activeViewRoundedY = Math.Round (viewRelativeCoordinates.Y, 2);
+			var activeViewRoundedY = Math.Round (viewRelativeCoordinates.Y + view.Bounds.Top, 2);        //  + view.Bounds.Top in order to get scrolled Editors (more text than height and scrolled down) right
 
 			return activeViewRoundedY + view.Frame.Height;
 		}
@@ -50,15 +50,19 @@ namespace KeyboardOverlap.Forms.Plugin.iOSUnified
 		/// <param name="activeView">Active view.</param>
 		/// <param name="rootView">Root view.</param>
 		/// <param name="keyboardFrame">Keyboard frame.</param>
-		public static bool IsKeyboardOverlapping (this UIView activeView, UIView rootView, CGRect keyboardFrame)
+		public static bool IsKeyboardOverlapping (this UIView activeView, UIView rootView, nfloat keyboardHeight)
 		{
 			var activeViewBottom = activeView.GetViewRelativeBottom (rootView);
 			var pageHeight = rootView.Frame.Height;
-			var keyboardHeight = keyboardFrame.Height;
 
 			var isOverlapping = activeViewBottom >= (pageHeight - keyboardHeight);
 
 			return isOverlapping;
+		}
+
+		public static void Log(this CGRect rect, string text)
+		{
+			Console.WriteLine($"{text} top={rect.Top}, bottom={rect.Bottom}");
 		}
 	}
 }

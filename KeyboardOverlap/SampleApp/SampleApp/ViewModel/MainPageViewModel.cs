@@ -16,7 +16,8 @@ namespace SampleApp
 						PageTitle.WithOtherContent,
 						PageTitle.WithScrollView,
 						PageTitle.SearchBar,
-						PageTitle.Editor
+						PageTitle.Editor,
+						PageTitle.FullScreen,
 					};
 
 				}

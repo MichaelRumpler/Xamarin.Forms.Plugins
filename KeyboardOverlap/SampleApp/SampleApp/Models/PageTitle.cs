@@ -10,5 +10,6 @@ namespace SampleApp
 		public const string WithScrollView = "With Scroll View";
 		public const string SearchBar = "Search Bar";
 		public const string Editor = "Editor";
+		public const string FullScreen = "Full Screen Editor";
 	}
 }

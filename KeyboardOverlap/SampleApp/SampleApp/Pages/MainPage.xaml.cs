@@ -14,9 +14,9 @@ namespace SampleApp
 			BindingContext = new MainPageViewModel ();
 		}
 
-		private async void OnItemSelected (object sender, SelectedItemChangedEventArgs args)
+		private async void OnItemSelected (object sender, ItemTappedEventArgs args)
 		{
-			var selectedItem = args.SelectedItem.ToString ();
+			var selectedItem = args.Item.ToString ();
 
 			switch (selectedItem) {
 
@@ -49,6 +49,11 @@ namespace SampleApp
 			case PageTitle.Editor:
 				{
 					await Navigation.PushAsync (new MultiLineText ());
+					break;
+				}
+			case PageTitle.FullScreen:
+				{
+					await Navigation.PushAsync(new FullScreenEditor ());
 					break;
 				}
 			}
